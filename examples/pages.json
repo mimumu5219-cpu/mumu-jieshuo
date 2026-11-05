@@ -1,0 +1,73 @@
+{
+  "meta": {
+    "title": "WorkBuddy 到底能帮你做什么",
+    "kicker": "WORKBUDDY · 讲解",
+    "sections": 4,
+    "presenter": {"type": "none"},
+    "voice": "Tingting",
+    "rate": 180
+  },
+  "pages": [
+    {
+      "topic": "它到底是什么",
+      "desc": "不是聊天工具，是能动手做事的助手",
+      "caption": "**WorkBuddy** 到底是什么",
+      "section": 0,
+      "module": "cover",
+      "data": {"tag": "本期讲解", "title": "WorkBuddy", "sub": "一句话，把想法变成成品"}
+    },
+    {
+      "topic": "一句话就开始干活",
+      "desc": "不用写提示词，说清要什么就行",
+      "caption": "你说一句，它**直接做出成品**",
+      "section": 0,
+      "module": "term",
+      "data": {"lines": [
+        ["cmd", "> 把这份销售数据做成周报"],
+        ["dim", "  正在读取 销售明细.xlsx …"],
+        ["ok", "✓ 已生成 周报.docx（含趋势图）"],
+        ["dim", "  用时 42 秒　共 6 页"]
+      ]}
+    },
+    {
+      "topic": "聊天 和 交付",
+      "desc": "区别不在回答，在能不能交东西",
+      "caption": "区别在**交付**，不在回答",
+      "section": 1,
+      "module": "pair",
+      "data": {"left": "普通 AI", "leftSub": "给你一段建议", "right": "WorkBuddy", "rightSub": "直接给成品文件"}
+    },
+    {
+      "topic": "三步就能跑通",
+      "desc": "说清需求，它做，你来验收",
+      "caption": "说清楚 → 它执行 → 你验收",
+      "section": 2,
+      "module": "steps",
+      "data": {"items": [
+        {"t": "说清需求", "s": "要什么、给谁看"},
+        {"t": "它来执行", "s": "查、算、写、排版"},
+        {"t": "你来验收", "s": "改一句，它重做"}
+      ]}
+    },
+    {
+      "topic": "省下来的时间",
+      "desc": "重复劳动交给它，你只做判断",
+      "caption": "同样的事，快 **10 倍**",
+      "section": 2,
+      "module": "stat",
+      "data": {"num": "10", "unit": "倍", "desc": "同一件事的产出速度", "fill": 92}
+    },
+    {
+      "topic": "用之前先记住",
+      "desc": "三件小事，决定了产出质量",
+      "caption": "**说清楚**，才做得准",
+      "section": 3,
+      "module": "risk",
+      "data": {"tag": "使用提醒", "items": [
+        "需求一次说清，别让它猜",
+        "产出要复核，别直接发出去",
+        "敏感数据，先想清楚再给"
+      ]}
+    }
+  ]
+}

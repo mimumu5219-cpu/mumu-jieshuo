@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>WorkBuddy 讲解卡</title>
+<style>
+  :root{
+    --navy-1:#081B3B; --navy-2:#131549;
+    --card:#FDFCFF; --panel:#F7F9FD;
+    --blue:#0C5AFF; --cyan:#00D1FF;
+    --ink:#101828; --gray:#6B7280;
+    --dark:#00162C; --red:#E8442E; --green:#16A34A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  /* 入场动效：所有动画的延迟都减去 --t，配合 paused 可冻结在任意时刻逐帧截图 */
+  @property --n{syntax:'<integer>';inherits:false;initial-value:0}
+  body.frozen *{ animation-play-state:paused !important; }
+  .anim{ animation:lift .6s cubic-bezier(.22,.9,.3,1) both;
+    animation-delay:calc(var(--d,0s) - var(--t,0s)); }
+  @keyframes lift{ from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:none;} }
+  .item{ animation:pop .5s cubic-bezier(.2,.9,.3,1) both;
+    animation-delay:calc(var(--d,0s) - var(--t,0s)); }
+  @keyframes pop{ from{opacity:0; transform:translateY(10px) scale(.98);} to{opacity:1; transform:none;} }
+  /* 中间区的四种入场特效，分页稿用 fx 指定 */
+  .anim-lift{ animation:lift .6s cubic-bezier(.22,.9,.3,1) both;
+    animation-delay:calc(var(--d,0s) - var(--t,0s)); }
+  .anim-zoom{ animation:zIn .66s cubic-bezier(.2,.8,.2,1) both;
+    animation-delay:calc(var(--d,0s) - var(--t,0s)); }
+  @keyframes zIn{ from{opacity:0; transform:scale(.92);} to{opacity:1; transform:none;} }
+  .anim-slide{ animation:sIn .62s cubic-bezier(.2,.85,.25,1) both;
+    animation-delay:calc(var(--d,0s) - var(--t,0s)); }
+  @keyframes sIn{ from{opacity:0; transform:translateX(26px);} to{opacity:1; transform:none;} }
+  .anim-flip{ animation:fIn .74s cubic-bezier(.2,.8,.2,1) both;
+    animation-delay:calc(var(--d,0s) - var(--t,0s)); }
+  @keyframes fIn{ from{opacity:0; transform:perspective(900px) rotateY(-13deg) translateY(8px);}
+    to{opacity:1; transform:none;} }
+  .anim-blur{ animation:bIn .8s ease-out both;
+    animation-delay:calc(var(--d,0s) - var(--t,0s)); }
+  @keyframes bIn{ from{opacity:0; filter:blur(9px); transform:scale(1.03);}
+    to{opacity:1; filter:none; transform:none;} }
+  /* 光扫：每 2.6s 扫过一次，给封面/战报/立绘增加存在感 */
+  .sweep{ position:relative; overflow:hidden; }
+  .sweep::after{ content:""; position:absolute; inset:-10%; z-index:6; pointer-events:none;
+    background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.38) 50%,transparent 60%);
+    transform:translateX(-130%); animation:sw 2.6s ease-in-out infinite;
+    animation-delay:calc(var(--d,0s) - var(--t,0s)); }
+  @keyframes sw{ 0%{transform:translateX(-130%);} 58%,100%{transform:translateX(130%);} }
+  .cv{ animation-duration:.7s; animation-fill-mode:both;
+    animation-delay:calc(var(--d,0s) - var(--t,0s)); counter-reset:n var(--n); }
+  .cv::after{ content:counter(n); }
+  .m-stat .bar i{ transform-origin:left; animation:grow .9s cubic-bezier(.2,.8,.2,1) both;
+    animation-delay:calc(.15s - var(--t,0s)); }
+  @keyframes grow{ from{transform:scaleX(0);} to{transform:scaleX(1);} }
+  .m-timeline .line::before{ transform-origin:left; animation:grow .8s ease-out both;
+    animation-delay:calc(.1s - var(--t,0s)); }
+  .m-uimock .mark{ animation:pulse 1.6s ease-in-out infinite;
+    animation-delay:calc(0s - var(--t,0s)); }
+  @keyframes pulse{ 0%,100%{opacity:.55;} 50%{opacity:1;} }
+  html,body{width:1080px; height:1440px; overflow:hidden; background:#05070f;}
+  body{font-family:"PingFang SC","Noto Sans SC","Microsoft YaHei",-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .stage{ width:1080px; height:1440px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(120% 80% at 15% 0%, #123A6B 0%, transparent 55%),
+      radial-gradient(90% 60% at 90% 100%, #1B2A7A 0%, transparent 60%),
+      linear-gradient(160deg, var(--navy-1) 0%, #0E1B45 45%, var(--navy-2) 100%); }
+  .stage::after{ content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:radial-gradient(50% 30% at 50% 42%, rgba(0,209,255,.16), transparent 70%); }
+
+  /* ---------- 白卡：全片固定不动 ---------- */
+  .card{ position:absolute; left:62px; top:68px; width:954px; height:1301px; z-index:1;
+    background:var(--card); border-radius:38px;
+    box-shadow:0 40px 90px rgba(0,0,0,.45); }
+
+  /* 左上角：全片大字标题 */
+  .kicker-row{ position:absolute; left:34px; top:26px; width:886px; height:34px;
+    display:flex; align-items:center; justify-content:space-between; }
+  .kicker{ font-size:23px; color:#98A2B3; letter-spacing:2px; font-weight:600;
+    display:flex; align-items:center; gap:10px; }
+  .kicker::before{ content:""; width:6px; height:18px; border-radius:3px;
+    background:linear-gradient(180deg,#00D1FF,#0C5AFF); }
+  .pageno{ font-size:23px; color:#98A2B3; font-weight:600; letter-spacing:1px; }
+  .pageno b{ color:var(--blue); }
+
+  .title-wrap{ position:absolute; left:34px; top:66px; width:886px; height:194px;
+    display:flex; align-items:center; overflow:hidden; }
+  .bigtitle{ font-size:74px; line-height:1.16; font-weight:900; color:var(--blue);
+    letter-spacing:-1px; transform:skewX(-7deg); transform-origin:left center;
+    max-width:886px; }
+
+  /* ---------- 中间：素材 / 图解区 ---------- */
+  .media{ position:absolute; left:34px; top:280px; width:886px; height:476px;
+    background:var(--panel); border-radius:22px; padding:26px; overflow:hidden; }
+  .media-inner{ position:relative; width:834px; height:424px; }
+
+  .m-img{ width:100%; height:100%; object-fit:cover; border-radius:16px;
+    background:#fff; }
+  .media .vtag{ position:absolute; right:12px; bottom:10px; background:rgba(0,22,44,.82);
+    color:#9BE8FF; font-size:20px; padding:6px 14px; border-radius:9px; letter-spacing:1px; }
+
+  /* 12 个内置内容模块 */
+  .m-cover{ height:100%; border-radius:20px; color:#fff; position:relative; overflow:hidden;
+    background:linear-gradient(150deg,#03122A 0%,#062044 55%,#0B2A55 100%);
+    display:flex; flex-direction:column; justify-content:center; align-items:center; gap:16px;
+    border:2px solid #0B3B6B; }
+  .m-cover .pill{ position:absolute; left:30px; top:26px; background:var(--red); color:#fff;
+    font-size:21px; font-weight:800; padding:7px 18px; border-radius:10px; letter-spacing:1px; }
+  .m-cover h2{ font-size:60px; font-weight:900; letter-spacing:1px; }
+  .m-cover p{ font-size:25px; color:#9BE8FF; }
+
+  .m-term{ height:100%; border-radius:20px; padding:28px 32px; overflow:hidden;
+    background:var(--dark); color:#B7F3FF; font-family:ui-monospace,Menlo,monospace;
+    font-size:24px; line-height:1.72; display:flex; flex-direction:column; justify-content:center; }
+  .m-term .ln{ white-space:pre-wrap; }
+  .m-term .ln.cmd{ color:#7FE9FF; }
+  .m-term .ln.ok{ color:#5BE49B; }
+  .m-term .ln.dim{ color:#5B7BA8; }
+
+  .m-code{ height:100%; border-radius:20px; background:#fff; padding:26px 30px;
+    box-shadow:0 18px 40px rgba(16,24,40,.10); overflow:hidden;
+    border-left:8px solid var(--cyan); }
+  .m-code .cap{ font-size:22px; color:#98A2B3; margin-bottom:14px; letter-spacing:1px; }
+  .m-code pre{ font-family:ui-monospace,Menlo,monospace; font-size:24px; line-height:1.68;
+    color:#1E293B; white-space:pre-wrap; }
+
+  .m-quote{ height:100%; display:flex; align-items:center; gap:26px; padding:0 10px; }
+  .m-quote .bg{ flex:1; background:#EAF2FF; border-radius:26px; padding:36px 38px; position:relative; }
+  .m-quote .bg::after{ content:""; position:absolute; left:-18px; bottom:44px; width:0; height:0;
+    border:18px solid transparent; border-right-color:#EAF2FF; border-left:0; }
+  .m-quote .qm{ font-size:60px; color:var(--blue); line-height:.6; height:34px; font-weight:900; }
+  .m-quote .tx{ margin-top:12px; font-size:34px; font-weight:800; color:#0B2A55; line-height:1.45; }
+  .m-quote .av{ width:96px; height:96px; border-radius:50%; flex:none;
+    background:linear-gradient(150deg,#2F7BFF,#0C5AFF); color:#fff; display:grid; place-items:center;
+    font-size:30px; font-weight:900; }
+
+  .m-uimock{ height:100%; border-radius:18px; background:#fff; overflow:hidden;
+    box-shadow:0 16px 36px rgba(16,24,40,.10); position:relative; }
+  .m-uimock .bar{ height:44px; background:#EEF2F8; display:flex; align-items:center; gap:8px; padding:0 16px; }
+  .m-uimock .bar i{ width:11px; height:11px; border-radius:50%; background:#C6CFDC; }
+  .m-uimock .rows{ padding:18px 22px; display:grid; gap:12px; }
+  .m-uimock .row{ display:flex; align-items:center; gap:14px; font-size:24px; color:#334155; }
+  .m-uimock .row .ic{ width:34px; height:34px; border-radius:9px; background:#E8EEFB; flex:none; }
+  .m-uimock .row .rst{ margin-left:auto; font-size:20px; color:#98A2B3; }
+  .m-uimock .mark{ position:absolute; border:4px solid var(--red); border-radius:12px;
+    box-shadow:0 0 0 4px rgba(232,68,46,.12); }
+  .m-uimock .tip{ position:absolute; background:var(--red); color:#fff; font-size:22px; font-weight:800;
+    padding:6px 14px; border-radius:9px; }
+
+  .m-pair{ height:100%; display:flex; gap:28px; align-items:stretch; }
+  .m-pair>div{ flex:1; border-radius:20px; background:#fff; border:2px solid #E7EBF3;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
+  .m-pair>div.no{ background:#FDF2F4; border-color:#F7C9D4; }
+  .m-pair h4{ font-size:38px; font-weight:900; color:var(--ink); text-align:center; }
+  .m-pair .no h4{ color:var(--blue); }
+  .m-pair p{ font-size:25px; font-weight:700; color:var(--green); text-align:center; }
+  .m-pair .no p{ color:var(--red); }
+  .m-pair .mk{ font-size:46px; }
+
+  .m-stat{ height:100%; border-radius:20px; background:linear-gradient(160deg,#03122A,#062044);
+    border:2px solid #0B3B6B; color:#fff; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:12px; padding:20px 40px; }
+  .m-stat .num{ font-size:120px; font-weight:900; color:#7FE9FF; letter-spacing:-3px; line-height:1; }
+  .m-stat .num small{ font-size:40px; font-weight:800; margin-left:6px; color:#7FE9FF; }
+  .m-stat .desc{ font-size:27px; color:#A9BFD8; text-align:center; }
+  .m-stat .bar{ width:100%; height:22px; border-radius:11px; background:#0B2A4D; overflow:hidden; margin-top:10px; }
+  .m-stat .bar i{ display:block; height:100%; border-radius:11px;
+    background:linear-gradient(90deg,#00D1FF,#4D8BFF); }
+
+  .m-timeline{ height:100%; padding:40px 30px 0; }
+  .m-timeline .line{ position:relative; display:flex; justify-content:space-between; align-items:center; }
+  .m-timeline .line::before{ content:""; position:absolute; left:10px; right:10px; top:50%; height:4px;
+    background:#D6DEEA; transform:translateY(-50%); }
+  .m-timeline b{ position:relative; width:24px; height:24px; border-radius:50%; background:#C3CBD8; }
+  .m-timeline b.on{ background:var(--blue); box-shadow:0 0 0 6px rgba(12,90,255,.12); }
+  .m-timeline .labels{ display:flex; justify-content:space-between; margin-top:26px; }
+  .m-timeline .labels span{ width:180px; font-size:25px; color:#475467; font-weight:700; }
+  .m-timeline .labels span:nth-child(2){ text-align:center; }
+  .m-timeline .labels span:last-child{ text-align:right; color:#98A2B3; }
+  .m-timeline .card2{ margin-top:30px; background:#fff; border-radius:16px; padding:22px 26px;
+    border:2px solid #EEF1F7; font-size:24px; color:#334155; }
+
+  .m-art{ height:100%; border-radius:20px; overflow:hidden; position:relative;
+    background:linear-gradient(160deg,#0A0A0F,#141824 60%,#0A1226); border:2px solid #1E2A44;
+    color:#fff; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:10px; }
+  .m-art .plat{ font-size:22px; letter-spacing:6px; color:#7FA6D8; }
+  .m-art h2{ font-size:58px; font-weight:900; }
+  .m-art p{ font-size:24px; color:#8FB4E0; letter-spacing:2px; }
+
+  .m-list{ height:100%; border-radius:18px; background:#fff; padding:20px 24px;
+    box-shadow:0 16px 36px rgba(16,24,40,.10); position:relative; }
+  .m-list .row{ display:flex; align-items:center; gap:14px; padding:10px 8px; font-size:24px; color:#334155; }
+  .m-list .row .idx{ color:#98A2B3; font-family:ui-monospace,Menlo,monospace; font-size:22px; width:34px; }
+  .m-list .row .nm{ font-weight:700; }
+  .m-list .row .st{ margin-left:auto; font-size:21px; color:#16A34A; }
+  .m-list .ring{ position:absolute; border:4px solid var(--red); border-radius:12px; }
+  .m-list .from{ position:absolute; left:24px; bottom:12px; font-size:19px; color:#98A2B3; }
+
+  .m-steps{ height:100%; display:flex; align-items:center; gap:16px; padding:0 6px; }
+  .m-steps .st{ flex:1; background:#fff; border:2px solid #E7EBF3; border-radius:18px;
+    padding:26px 16px; text-align:center; min-height:250px; display:flex; flex-direction:column;
+    justify-content:center; gap:10px; }
+  .m-steps .st b{ width:44px; height:44px; margin:0 auto; border-radius:50%; display:grid;
+    place-items:center; background:var(--blue); color:#fff; font-size:22px; }
+  .m-steps .st h4{ font-size:27px; font-weight:800; color:var(--ink); }
+  .m-steps .st p{ font-size:21px; color:#6B7280; line-height:1.4; }
+  .m-steps .ar{ color:var(--blue); font-size:30px; font-weight:900; flex:none; }
+
+  .m-risk{ height:100%; border-radius:20px; background:#FFF1EC; border:3px solid #F2A493;
+    padding:30px 34px; display:flex; flex-direction:column; justify-content:center; gap:20px; }
+  .m-risk .tag{ align-self:flex-start; background:var(--red); color:#fff; font-size:23px;
+    font-weight:800; padding:8px 20px; border-radius:10px; }
+  .m-risk ul{ list-style:none; display:grid; gap:14px; }
+  .m-risk li{ font-size:27px; color:var(--ink); padding-left:34px; position:relative; }
+  .m-risk li::before{ content:"•"; position:absolute; left:8px; color:var(--red); font-weight:900; }
+
+  /* ---------- 左下：主播窗 ---------- */
+  .presenter{ position:absolute; left:34px; top:830px; width:384px; height:371px;
+    border-radius:34px; border:7px solid var(--cyan); overflow:hidden;
+    background:repeating-linear-gradient(45deg,#EAF2FB 0 12px,#E1ECF8 12px 24px);
+    box-shadow:0 0 0 10px rgba(0,209,255,.14), 0 16px 40px rgba(12,90,255,.16);
+    display:grid; place-content:center; text-align:center; gap:8px; }
+  .presenter img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .presenter p{ font-size:24px; color:#7A93B4; font-weight:700; }
+  .presenter small{ font-size:19px; color:#9FB2CC; }
+
+  /* ---------- 右侧：正在讲解的主题 ---------- */
+  .topic{ position:absolute; left:452px; top:858px; width:468px; height:343px;
+    display:flex; flex-direction:column; }
+  .topic .cat{ font-size:23px; color:#98A2B3; display:flex; align-items:center; gap:10px; }
+  .topic .cat::before{ content:""; width:6px; height:18px; border-radius:3px;
+    background:linear-gradient(180deg,#00D1FF,#0C5AFF); }
+  .topic h3{ margin-top:18px; font-size:44px; line-height:1.28; font-weight:900;
+    color:var(--blue); letter-spacing:-.5px; }
+  .topic p{ margin-top:14px; font-size:26px; line-height:1.5; color:#475467; }
+  .pager{ display:flex; gap:12px; margin-top:auto; }
+  .pager i{ width:14px; height:14px; border-radius:50%; background:#D7DEE9; }
+  .pager i.on{ width:50px; border-radius:7px; background:var(--blue); }
+
+  /* ---------- 底部：文案字幕 ---------- */
+  .caption{ position:absolute; left:24px; top:1228px; width:906px; height:66px;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+    font-weight:800; color:#0B1220; letter-spacing:.5px; line-height:1.2; }
+  .caption em{ font-style:normal; color:var(--blue); }
+
+  /* ---------- 全片进度条（卡片下方） ---------- */
+  .prog{ position:absolute; left:86px; top:1387px; width:930px; height:6px; z-index:3;
+    border-radius:3px; background:rgba(0,209,255,.22); overflow:hidden; }
+  .prog i{ display:block; height:100%; border-radius:3px; background:var(--cyan); }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="card">
+    <div class="kicker-row">
+      <div class="kicker" id="kicker">WORKBUDDY · 讲解</div>
+      <div class="pageno" id="pageno" style="display:none"></div>
+    </div>
+    <div class="title-wrap"><h1 class="bigtitle" id="bigTitle">WorkBuddy</h1></div>
+    <div class="media"><div class="media-inner" id="media"></div></div>
+    <div class="presenter" id="presenter"><p>主播形象位</p><small>384 × 371 · 青描边 7px</small></div>
+    <div class="topic">
+      <div class="cat">正在讲解</div>
+      <h3 id="topic"></h3>
+      <p id="desc"></p>
+      <div class="pager" id="pager"></div>
+    </div>
+    <div class="caption" id="caption"></div>
+  </div>
+  <div class="prog"><i id="pfill" style="width:0%"></i></div>
+</div>
+
+<script src="pages.js"></script>
+<script>
+const WB = window.WB || {meta:{}, pages:[]};
+const META = WB.meta || {};
+const PAGES = WB.pages || [];
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>]/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const rich = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<em>$1</em>');
+
+/* 按真实字宽找最大可用字号；优先整行，其次在空格处断行，最后才按字均衡断行 */
+function fitTitle(text){
+  const chars = [...String(text || '')];
+  const maxW = 862;
+  const cv = document.createElement('canvas');
+  const ctx = cv.getContext('2d');
+  const w = (s, size) => {
+    ctx.font = `900 ${size}px "PingFang SC","Noto Sans SC",sans-serif`;
+    return ctx.measureText(s).width;
+  };
+  const splitAt = (list, size) => {
+    let best = null;
+    for(const k of list){
+      const a = chars.slice(0, k).join('').trim();
+      const b = chars.slice(k).join('').trim();
+      if(!a || !b) continue;
+      const wa = w(a, size), wb = w(b, size);
+      if(wa <= maxW && wb <= maxW){
+        const score = Math.max(wa, wb) + Math.abs(wa - wb) * 0.35;
+        if(!best || score < best.score) best = {size, lines:[a, b], score};
+      }
+    }
+    return best;
+  };
+  const spaceK = chars.map((c, k) => c === ' ' ? k : -1).filter(k => k > 0);
+  const punctK = chars.map((c, k) => '，,、；;：:。.'.includes(c) && k > 0 && k < chars.length - 1 ? k + 1 : -1)
+    .filter(k => k > 0);
+  // 1) 整行优先：能用一行就别换行
+  for(let size = 78; size >= 44; size -= 2){
+    if(w(text, size) <= maxW) return {size, lines:[text]};
+  }
+  // 2) 实在放不下才换行：先空格，再标点后断，最后按字均衡
+  for(let size = 78; size >= 56; size -= 2){
+    const bySpace = splitAt(spaceK, size);
+    if(bySpace) return bySpace;
+    const byPunct = splitAt(punctK, size);
+    if(byPunct) return byPunct;
+    const byChar = splitAt(chars.map((_, k) => k).slice(1, -1), size);
+    if(byChar) return byChar;
+  }
+  return {size: 44, lines: [text]};
+}
+function captionSize(t){
+  const n = [...String(t).replace(/\*\*/g,'')].length;
+  if(n <= 16) return 42;
+  if(n <= 20) return 39;
+  if(n <= 26) return 34;
+  if(n <= 32) return 30;
+  return 26;
+}
+
+/* ---- 12 种内置模块 ---- */
+const MODS = {
+  cover: d => `<div class="m-cover">
+      ${d.tag ? `<div class="pill">${esc(d.tag)}</div>` : ''}
+      <h2>${esc(d.title || '')}</h2>
+      <p>${esc(d.sub || '')}</p></div>`,
+
+  term: d => `<div class="m-term">
+      ${(d.lines || []).map(l => {
+        const [cls, txt] = Array.isArray(l) ? l : ['', l];
+        return `<div class="ln ${esc(cls)}">${esc(txt)}</div>`;
+      }).join('')}</div>`,
+
+  code: d => `<div class="m-code">
+      <div class="cap">${esc(d.tag || '代码')}</div>
+      <pre>${(d.lines || []).map(esc).join('\n')}</pre></div>`,
+
+  quote: d => `<div class="m-quote">
+      <div class="bg"><div class="qm">&ldquo;</div><div class="tx">${esc(d.text || '')}</div></div>
+      <div class="av">${esc(d.avatar || 'WB')}</div></div>`,
+
+  uimock: d => {
+    const rows = (d.items || []).map(it => `<div class="row"><span class="ic"></span>
+        <span>${esc(it.t || it)}</span><span class="rst">${esc(it.s || '')}</span></div>`).join('');
+    const mk = d.mark ? `<div class="mark" style="left:${d.mark.left||4}%;top:${d.mark.top||30}%;
+        width:${d.mark.width||92}%;height:${d.mark.height||22}%"></div>` : '';
+    const tip = d.tip ? `<div class="tip" style="right:12px;top:10px">${esc(d.tip)}</div>` : '';
+    return `<div class="m-uimock"><div class="bar"><i></i><i></i><i></i></div>
+      <div class="rows">${rows}</div>${mk}${tip}</div>`;
+  },
+
+  pair: d => `<div class="m-pair">
+      <div><h4>${esc(d.left || '')}</h4><p>${esc(d.leftSub || '')}</p><div class="mk">✅</div></div>
+      <div class="no"><h4>${esc(d.right || '')}</h4><p>${esc(d.rightSub || '')}</p><div class="mk">❓</div></div></div>`,
+
+  stat: d => {
+    const raw = String(d.num || '');
+    const numeric = /^\d+(\.\d+)?$/.test(raw);
+    const numHtml = numeric
+      ? `<span class="cv" data-target="${raw}"></span>`
+      : esc(raw);
+    return `<div class="m-stat">
+      <div class="num">${numHtml}<small>${esc(d.unit || '')}</small></div>
+      <div class="desc">${esc(d.desc || '')}</div>
+      <div class="bar"><i style="width:${Number(d.fill || 100)}%"></i></div></div>`;
+  },
+
+  timeline: d => {
+    const n = (d.points || []).length || 3;
+    const on = Number(d.on || 2);
+    const dots = Array.from({length:n}, (_, i) => `<b class="${i < on ? 'on' : ''}"></b>`).join('');
+    const labels = (d.points || []).map(p => `<span>${esc(p)}</span>`).join('');
+    return `<div class="m-timeline"><div class="line">${dots}</div>
+      <div class="labels">${labels}</div>
+      ${d.note ? `<div class="card2">${esc(d.note)}</div>` : ''}</div>`;
+  },
+
+  art: d => `<div class="m-art">
+      <div class="plat">${esc(d.platform || '')}</div>
+      <h2>${esc(d.title || '')}</h2>
+      <p>${esc(d.sub || '')}</p></div>`,
+
+  list: d => {
+    const rows = (d.items || []).map((it, i) => `<div class="row"><span class="idx">${String(i+1).padStart(2,'0')}</span>
+      <span class="nm">${esc(it.t || it)}</span><span class="st">${esc(it.s || '')}</span></div>`).join('');
+    const ring = d.ring ? `<div class="ring" style="left:2%;top:${d.ring.top||20}%;
+      width:96%;height:${d.ring.height||18}%"></div>` : '';
+    return `<div class="m-list">${rows}${ring}${d.from ? `<div class="from">${esc(d.from)}</div>` : ''}</div>`;
+  },
+
+  steps: d => (d.items || []).map((it, i) =>
+      `<div class="st"><b>${i+1}</b><h4>${esc(it.t || it)}</h4><p>${esc(it.s || '')}</p></div>`
+    ).join('<div class="ar">➜</div>').replace(/^/, '<div class="m-steps">').replace(/$/, '</div>'),
+
+  risk: d => `<div class="m-risk"><div class="tag">${esc(d.tag || '风险提示')}</div>
+      <ul>${(d.items || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`
+};
+
+function renderMedia(p){
+  const m = p.media || {};
+  if(m.type === 'image' || m.type === 'poster'){
+    return `<img class="m-img" src="${esc(m.src)}">
+      ${m.type === 'poster' ? '<div class="vtag">视频片段</div>' : ''}`;
+  }
+  const d = p.data || {};
+  const fn = MODS[p.module] || MODS.cover;
+  try { return fn(d); } catch(e){ return MODS.cover({title: p.topic || '', sub: p.desc || ''}); }
+}
+
+function renderPresenter(){
+  const pr = META.presenter || {type:'none'};
+  const box = document.getElementById('presenter');
+  if(pr.type === 'image' && pr.src){
+    box.innerHTML = `<img src="${esc(pr.src)}">`;
+  } else if(pr.type === 'video' && pr.poster){
+    box.innerHTML = `<img src="${esc(pr.poster)}">`;
+  }
+}
+
+let cur = 0;
+const QS = new URLSearchParams(location.search);
+const qp = QS.get('p');
+if(qp) cur = Math.max(0, Math.min(PAGES.length - 1, Number(qp) - 1));
+const shot = QS.get('shot') === '1';
+const frozenT = QS.get('t');
+if(frozenT){
+  document.body.classList.add('frozen');
+  document.documentElement.style.setProperty('--t', frozenT + 's');
+}
+
+/* 给中间图解挂入场动效：整块特效 + 子元素按序列 pop；fx 可在 pages.json 指定 */
+const FX_DEFAULT = {
+  stat: 'zoom+sweep', cover: 'zoom+sweep', art: 'zoom+sweep',
+  quote: 'zoom', pair: 'slide', steps: 'slide', list: 'slide',
+  timeline: 'slide', uimock: 'flip', risk: 'blur',
+};
+function applyAnim(){
+  const root = document.getElementById('media');
+  const first = root.firstElementChild;
+  if(!first) return;
+  const p = PAGES[cur] || {};
+  const spec = String(p.fx || FX_DEFAULT[p.module] || 'lift').split('+');
+  spec.forEach(t => {
+    const k = t.trim();
+    if(!k) return;
+    if(k === 'sweep') first.classList.add('sweep');
+    else first.classList.add('anim-' + k);
+  });
+  const groups = ['.m-steps .st', '.m-list .row', '.m-uimock .row', '.m-risk li',
+    '.m-term .ln', '.m-pair > div', '.m-timeline b', '.m-timeline .labels span',
+    '.m-cover .pill', '.m-cover h2', '.m-cover p', '.m-code pre', '.m-quote .bg',
+    '.m-quote .av', '.m-art .plat', '.m-art h2', '.m-art p', '.m-stat .num', '.m-stat .desc'];
+  groups.forEach(sel => [...root.querySelectorAll(sel)].forEach((el, i) => {
+    el.classList.add('item');
+    el.style.setProperty('--d', (0.03 + i * 0.05).toFixed(2) + 's');
+  }));
+  const cv = root.querySelector('.cv');
+  if(cv){
+    const target = Math.round(Number(cv.dataset.target || 0));
+    const old = document.getElementById('rollkf');
+    if(old) old.remove();
+    const st = document.createElement('style');
+    st.id = 'rollkf';
+    st.textContent = `@keyframes roll${cur}{from{--n:0}to{--n:${target}}}`;
+    document.head.appendChild(st);
+    cv.style.animationName = 'roll' + cur;
+  }
+}
+
+function render(){
+  const p = PAGES[cur] || {};
+  document.getElementById('kicker').textContent = META.kicker || 'WORKBUDDY · 讲解';
+
+  const bg = document.getElementById('bigTitle');
+  const t = fitTitle(META.title || '');
+  bg.style.fontSize = t.size + 'px';
+  bg.innerHTML = t.lines.map(esc).join('<br>');
+
+  document.getElementById('media').innerHTML = renderMedia(p);
+  applyAnim();
+
+  document.getElementById('topic').textContent = p.topic || '';
+  document.getElementById('desc').textContent = p.desc || '';
+
+  const pg = document.getElementById('pager');
+  const sections = Number(META.sections || 4);
+  pg.innerHTML = Array.from({length:sections}, (_, i) =>
+    `<i class="${i === Number(p.section||0) ? 'on' : ''}"></i>`).join('');
+
+  const cap = document.getElementById('caption');
+  const cq = Math.max(0, parseInt(QS.get('c') || '0', 10) || 0);
+  const capText = (Array.isArray(p.sub) && p.sub[cq]) ? p.sub[cq] : (p.caption || '');
+  cap.innerHTML = rich(capText);
+  cap.style.fontSize = captionSize(capText) + 'px';
+  // 字幕保持烘焙在页面里，成片阶段用白卡遮片从左往右擦出
+  cap.style.visibility = QS.get('cap') === '0' ? 'hidden' : 'visible';
+
+  // measure=1：把字幕拆成逐字 span，把每个字的精确 x 宽度写进 data 属性，
+  // 供 render.py 用 --dump-dom 读回，做整字擦出对齐
+  if(QS.get('measure') === '1'){
+    // 不动已渲染的字幕，用 Range 量每个字的真实位置（与截图完全同一份布局）
+    const nodes = [];
+    const tw = document.createTreeWalker(cap, NodeFilter.SHOW_TEXT);
+    while(tw.nextNode()) nodes.push(tw.currentNode);
+    const base = cap.getBoundingClientRect().left;
+    const box = document.createElement('div');
+    box.id = 'capm'; box.style.display = 'none';
+    nodes.forEach(nd => {
+      const s = nd.textContent;
+      for(let k = 0; k < s.length; k++){
+        const rg = document.createRange();
+        rg.setStart(nd, k); rg.setEnd(nd, k + 1);
+        const rc = rg.getBoundingClientRect();
+        if(!rc.width) continue;
+        const d = document.createElement('span');
+        d.setAttribute('data-c', s[k]);
+        d.setAttribute('data-x', (rc.left - base).toFixed(2));
+        d.setAttribute('data-w', rc.width.toFixed(2));
+        box.appendChild(d);
+      }
+    });
+    document.body.appendChild(box);
+    if(nodes.length){
+      const all = document.createRange();
+      all.setStart(nodes[0], 0);
+      const last = nodes[nodes.length - 1];
+      all.setEnd(last, last.textContent.length);
+      document.body.setAttribute('data-capw',
+        (all.getBoundingClientRect().right - base).toFixed(2));
+    }
+  }
+
+  document.getElementById('pfill').style.width = shot ? '0%' :
+    (((cur + 1) / Math.max(1, PAGES.length)) * 100).toFixed(2) + '%';
+
+  renderPresenter();
+}
+function go(d){ cur = (cur + d + PAGES.length) % PAGES.length; render(); }
+addEventListener('keydown', e => { if(e.key==='ArrowRight') go(1); if(e.key==='ArrowLeft') go(-1); });
+render();
+</script>
+</body>
+</html>
