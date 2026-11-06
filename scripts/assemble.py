@@ -170,23 +170,52 @@ def main():
     make_cover(os.path.join(ast, "bar_cover.png"), os.path.join(rdir, "page_00.png"))
     make_gutter(os.path.join(ast, "gutter.png"), os.path.join(rdir, "page_00.png"))
 
-    # ---------- 1. 每页视频段：入场动画帧 + 定格页 ----------
+    # ---------- 1. 每页视频段：入场动画帧 + 定格页（图片页定格部分叠加 Ken Burns） ----------
     for i, dur in enumerate(page_dur):
         frames = sorted(glob.glob(os.path.join(rdir, "anim", f"page_{i:02d}", "f_*.png")))
         settled = os.path.join(rdir, f"page_{i:02d}.png")
         seg = os.path.join(sdir, f"seg_{i:02d}.mp4")
+
+        # Ken Burns：图片页的定格部分让素材图缓慢推近 + 水平漂移，全程在动。
+        # 从 zoom=1 居中起步（与定格画面无缝衔接），相邻页交替漂移方向。
+        media = pages[i].get("media") or {}
+        kb_src = None
+        if media.get("type") == "image" and media.get("src"):
+            cand = os.path.join(proj, media["src"])
+            if os.path.exists(cand):
+                kb_src = cand
+
         if frames:
             hold = max(0.05, dur - len(frames) / FPS)
             cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
                    "-framerate", str(FPS), "-i",
                    os.path.join(rdir, "anim", f"page_{i:02d}", "f_%03d.png"),
-                   "-loop", "1", "-framerate", str(FPS), "-t", f"{hold:.3f}", "-i", settled,
-                   "-filter_complex",
-                   f"[0:v]fade=t=in:st=0:d={FADE}:color=white,format=yuv420p[a];"
-                   f"[1:v]scale={W}:{H},setsar=1,format=yuv420p[b];"
-                   f"[a][b]concat=n=2:v=1:a=0[v]",
-                   "-map", "[v]", "-r", str(FPS), "-c:v", "libx264", "-preset", "veryfast",
-                   "-crf", "16", "-pix_fmt", "yuv420p", "-g", str(FPS * 2), seg]
+                   "-loop", "1", "-framerate", str(FPS), "-t", f"{hold:.3f}", "-i", settled]
+            fc = ["[0:v]fade=t=in:st=0:d={}:color=white,format=yuv420p[a]".format(FADE)]
+            if kb_src:
+                n = max(2, int(round(hold * FPS)))
+                drift = 0.05 if i % 2 == 0 else -0.05
+                # 素材图只给 1 帧（zoompan 会把每个输入帧放大成 d 帧，
+                # 若循环输入 hold 秒会生成 hold×30×d 帧的巨型文件）
+                cmd += ["-i", kb_src,
+                        "-loop", "1", "-framerate", str(FPS), "-t", f"{hold:.3f}",
+                        "-i", os.path.join(ast, "mask_media.png")]
+                fc.append(
+                    f"[2:v]scale={MEDIA[2]*2}:{MEDIA[3]*2}:force_original_aspect_ratio=increase,"
+                    f"crop={MEDIA[2]*2}:{MEDIA[3]*2},setsar=1,"
+                    f"zoompan=z='1+0.10*(on-1)/({n}-1)':"
+                    f"x='iw/2-(iw/zoom/2)+({drift})*(iw/zoom)*(on-1)/({n}-1)':"
+                    f"y='ih/2-(ih/zoom/2)':d={n}:s={MEDIA[2]}x{MEDIA[3]}:fps={FPS},format=rgba[kbv];"
+                    f"[3:v]format=gray[kbm];"
+                    f"[kbv][kbm]alphamerge,fade=t=in:st=0:d=0.15:alpha=1[kba];"
+                    f"[1:v]scale={W}:{H},setsar=1[b0];"
+                    f"[b0][kba]overlay={MEDIA[0]}:{MEDIA[1]},format=yuv420p[b]")
+            else:
+                fc.append(f"[1:v]scale={W}:{H},setsar=1,format=yuv420p[b]")
+            fc.append("[a][b]concat=n=2:v=1:a=0[v]")
+            cmd += ["-filter_complex", ";".join(fc),
+                    "-map", "[v]", "-r", str(FPS), "-c:v", "libx264", "-preset", "veryfast",
+                    "-crf", "16", "-pix_fmt", "yuv420p", "-g", str(FPS * 2), seg]
         else:
             cmd = ["ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
                    "-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.3f}", "-i", settled,

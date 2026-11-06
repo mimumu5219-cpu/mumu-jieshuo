@@ -211,6 +211,7 @@ python3 <skill>/scripts/verify.py --project <dir> --stage video
 
 每页自动叠加（不写也有）：
 
+- **Ken Burns 图片运动**：图片页（`media.type=image`）在入场结束后，素材图全程缓慢推近（zoom 1.00→1.10）并水平漂移，相邻页交替方向；合成时自动叠加，分页稿无需指定
 - **子元素逐条**：步骤 / 清单 / 时间轴 / 对照卡 / 代码行 / 风险条目 / 封面元素依次浮入（`--d` 步进 0.05s）
 - **数字滚动**：`stat` 的 `num` 从 0 滚到目标值（`@property --n` + `counter`）
 - **条形/连线生长**：`stat.fill`、`timeline` 连线从左生长
